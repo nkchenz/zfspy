@@ -1,0 +1,3 @@
+The initial purpose of ZFSpy is a python module which can work with zfs-fuse, 
+read the zpool file, and work through the zfs filesystem.
+
