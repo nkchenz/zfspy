@@ -1,3 +1,5 @@
-The initial purpose of ZFSpy is a python module which can work with zfs-fuse, 
-read the zpool file, and work through the zfs filesystem.
+The initial purpose of ZFSpy is writing a python module which can 
+walk through the zfs filesystem, working with zfs-fuse.
 
+/etc/zfs/zpool.cache
+    stores all the data of zpool configuration, nvlist format 
