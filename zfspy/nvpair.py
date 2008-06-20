@@ -1,11 +1,12 @@
 """
-ZFSpy: zfs binding for python
+ZFSpy: Python bindings for ZFS
+
 Copyright (C) 2008 Chen Zheng <nkchenz@gmail.com>
 
-This program can be distributed under the terms of the GNU GPL v2.
+This file is licensed under the terms of the GNU General Public License
+version 2. This program is licensed "as is" without any warranty of any
+kind, whether express or implied.
 """
-
-import os
 from struct import pack, unpack
 
 DATA_TYPE = [
@@ -38,9 +39,9 @@ DATA_TYPE = [
 'DATA_TYPE_UINT8_ARRAY'
 ]
 
-class StreamUnpack(object):
+class StreamUnpacker(object):
     """
-    StreamUnpack is a handy way to unpack data to objects 
+    StreamUnpacker is a handy way to unpack data to objects 
 
     Becareful not to exceed the boundaries of data
 
@@ -201,7 +202,6 @@ class NVPair(object):
         Returns
             Dict
         """
-        print file, '%d bytes' % os.stat(file).st_size
         return self.unpack(open(file, 'rb').read())
 
 
@@ -214,7 +214,7 @@ class NVPair(object):
         Returns
             Dict
         """
-        su = StreamUnpack(data)
+        su = StreamUnpacker(data)
         #Four bytes nvheader
         encoding = ['native', 'xdr'][su.byte()]
         endian = ['<', '>'][su.byte()]
@@ -223,7 +223,7 @@ class NVPair(object):
         self.su.rewind(-2) # skip two chars
         if encoding == 'native':
             print 'Native encoding not implement'
-            return -1
+            return None 
         
         xdr = {}
         xdr['nvh_encoding'] = encoding
@@ -303,13 +303,13 @@ class NVPair(object):
 if __name__ == '__main__':
     np = NVPair()
     xdr_file = np.unpack_file('/etc/zfs/zpool.cache')
+    if xdr_file:
+        from pprint import pprint
+        
+        nvl = xdr_file['value']
+        print 'aha, found zpool: '
+        for pool in nvl['nvpairs']:
+            print pool['name']
 
-    from pprint import pprint
-    
-    nvl = xdr_file['value']
-    print 'aha, found zpool: '
-    for pool in nvl['nvpairs']:
-        print pool['name']
-
-    pprint(xdr_file)
+        pprint(xdr_file)
         
