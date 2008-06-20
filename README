@@ -1,10 +1,16 @@
-The initial purpose of ZFSpy is writing a python module which can 
-walk through the zfs filesystem, working with zfs-fuse.
+ZFSpy: Python bindings for ZFS
+
+    The initial purpose of ZFSpy is just writing a python module,
+    which can walk through the zfs filesystem, and can be used to 
+    learning zfs data structure, it's readonly.
+    
+    A working zfs-fuse is needed to play with.
+
 
 
 INSTALL
     
-    sudo python setup.py install
+    python setup.py install
 
 
 Examples
