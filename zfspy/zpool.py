@@ -9,6 +9,7 @@ kind, whether express or implied.
 """
 import os
 from nvpair import NVPair
+from oodict import OODict
 import conf
 
 class ZPool(object):
@@ -31,9 +32,20 @@ class ZPool(object):
         self.hostid = 0
         self.hostname = ''
         self.vdev_tree = None
+        self.vdev = OODict() 
         if data: 
             for k, v in data.items():
                 self.__setattr__(k, v)
+
+            # Gather vdev infos, vdev['disk'], vdev['file'], vdev['mirror'], etc.
+            for inter in self.vdev_tree.children:
+                if 'children' in inter:
+                    devs = []
+                    for leaf in inter.children:
+                         devs.append(leaf.path)
+                else:
+                    devs = inter.path
+                self.vdev.setdefault(inter.type, []).append(devs)
 
 
     def datasets(self):
@@ -47,7 +59,23 @@ class ZPool(object):
 
 
     def status(self):
-        return ['active', 'exported', 'destroyed'][self.state]
+        print '  pool:', self.name
+        print ' state:', ['ACTIVE', 'EXPORTED', 'DESTROYED'][self.state]
+        print 'config:'
+        print '       ', self.vdev_tree.type.upper()
+        
+        if 'children' in self.vdev_tree:
+            for inter in self.vdev_tree.children:
+                print '         ', 
+                if inter.is_log:
+                    print 'LOG',
+                print inter.type.upper(),
+                if 'children' in inter:
+                    print
+                    for leaf in inter.children:
+                         print '           ', leaf.type.upper(), leaf.path
+                else:
+                    print inter.path
 
 
     @classmethod
@@ -56,7 +84,7 @@ class ZPool(object):
         Import all the pools from zpool cache
 
         Returns
-            [zfspy.ZPool]
+            [ZPool]
         """
         try:
             st = os.stat(cf)
@@ -71,10 +99,14 @@ class ZPool(object):
         return pools
 
     def __repr__(self):
-        return '<zfspy.ZPool \'%s %x\'>' % (self.name, self.pool_guid)
+        return '<ZPool \'%s\'>' % self.name
 
 
 if __name__ == '__main__':
-    ZPool.import_cached()
+    pools = ZPool.import_cached()
+    for pool in pools:
+        pool.status()
+        print pool.vdev
+    
     import doctest
     doctest.testmod()
