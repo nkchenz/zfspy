@@ -15,3 +15,15 @@ INSTALL
 
 Examples
 
+    >>> from zfspy import *
+    >>> pools = ZPool.import_cached()
+    >>> pools
+    [<ZPool 'app'>, <ZPool 'db'>]
+    >>> app = pools[0]
+    >>> app.name
+    'app'
+    >>> app.state
+    0
+    >>> app.pool_guid
+    5617275442596158925L
+

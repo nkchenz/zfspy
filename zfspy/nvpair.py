@@ -8,6 +8,7 @@ version 2. This program is licensed "as is" without any warranty of any
 kind, whether express or implied.
 """
 from struct import pack, unpack
+from oodict import OODict
 
 DATA_TYPE = [
 'DATA_TYPE_UNKNOWN',
@@ -161,10 +162,10 @@ class StreamUnpacker(object):
         self.rewind(len)
 
 
-
 class NVPair(object):
     """
-    Unpack file or data to Dict.
+    Unpack file or data to Dict. This class is intended to be used 
+    by classmethods only.
 
     A xdr file is header + nvlist:
 
@@ -193,27 +194,7 @@ class NVPair(object):
         self.su = None
         pass
 
-    def unpack_file(self, file):
-        """
-        Unpack nvlist file to a dict
-
-        @file
-
-        Returns
-            Dict
-        """
-        return self.unpack(open(file, 'rb').read())
-
-
-    def unpack(self, data):
-        """
-        Unpack nvlist format data to a dict
-
-        @data
-    
-        Returns
-            Dict
-        """
+    def _do_unpack(self, data):
         su = StreamUnpacker(data)
         #Four bytes nvheader
         encoding = ['native', 'xdr'][su.byte()]
@@ -272,9 +253,7 @@ class NVPair(object):
             n = 0
             pair['value'] = None 
             return pair
-        else:
-            if 'ARRAY' not in type:
-                n = 1
+
 
         pair['type'] = type 
         pair['elements_n'] = n
@@ -284,12 +263,10 @@ class NVPair(object):
         # Parse all the elements
         for i in range(n):
            value.append(self._elements_decode(type))
-
-        # If there is only one value, we return it directly
-        if n == 1:
-            pair['value'] = value[0]
-        else:
-            pair['value'] = value
+        # If it's not a array, we should not return a list 
+        if 'ARRAY' not in type:
+            value = value[0]
+        pair['value'] = value
         return pair
 
     def _elements_decode(self, type):
@@ -299,17 +276,53 @@ class NVPair(object):
         attr = type.split('_')[2].lower()
         return getattr(self.su, attr)()
 
+    # The following is the common operations of nvlist
+    @classmethod
+    def strip(cls, nvlist):
+        """
+        Strip a nvlist dict to an simple OODict
+        """
+        striped = OODict() 
+        for pair in nvlist['nvpairs']:
+            pt = pair['type']
+            pn = pair['name']
+            pv = pair['value']
+            #print pt, pn, pv 
+            if 'NVLIST_ARRAY' in pt:
+                striped[pn] = []
+                for v in pv:
+                    striped[pn].append(cls.strip(v))
+            else:
+                if 'NVLIST' in pt:
+                    striped[pn] = cls.strip(pv)
+                else:
+                    striped[pn] = pv
+        return striped
+
+    @classmethod
+    def unpack_file(cls, file):
+        """
+        Unpack nvlist file to a dict
+
+        @file
+
+        Returns
+            Dict
+        """
+        return NVPair.unpack(open(file).read())
+
+    @classmethod
+    def unpack(cls, data):
+        return  NVPair()._do_unpack(data)
+        
 
 if __name__ == '__main__':
-    np = NVPair()
-    xdr_file = np.unpack_file('/etc/zfs/zpool.cache')
-    if xdr_file:
+    xdr = NVPair.unpack_file('/etc/zfs/zpool.cache')
+    if xdr:
         from pprint import pprint
         
-        nvl = xdr_file['value']
+        pprint(xdr)
+        nvl = NVPair.strip(xdr['value']) 
         print 'aha, found zpool: '
-        for pool in nvl['nvpairs']:
-            print pool['name']
-
-        pprint(xdr_file)
-        
+        print nvl.keys()
+        pprint(nvl)
