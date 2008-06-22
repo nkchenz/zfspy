@@ -71,6 +71,19 @@ class StreamUnpacker(object):
         self.pos = self.pos + len
         return unpack(self.endian + fmt, self.data[start : start + len ])
 
+    def repeat(self, attr, n):
+        """
+        Repeat excute attr n times, so we do not need many extra functions:)
+
+        Example:
+            self.repeat('uinit64', 3) excute self.uint64 3 times, so a 3 elements 
+            tuple is returned.
+        """
+        v = []
+        for i in range(n):
+            v.append(getattr(self, attr)())
+        return tuple(v)
+
     def boolean(self):
         if self.unpack('B', 1)[0]:
             return True
@@ -224,8 +237,7 @@ class NVPair(object):
 
     def _nvlist_decode(self):
         nvl = {}
-        nvl['version'] = self.su.uint32()
-        nvl['flag'] = self.su.uint32()
+        nvl['version'], nvl['flag'] = self.su.repeat('uint32', 2)
         nvl['nvpairs'] = self._pairs_decode() 
         return nvl
 
@@ -240,12 +252,10 @@ class NVPair(object):
     def _single_pair_decode(self):
         #Get name, type, elements number
         pair = {}
-        pair['encoded_sz'] = self.su.uint32()
-        pair['decoded_sz'] = self.su.uint32()
+        pair['encoded_sz'], pair['decoded_sz'] = self.su.repeat('uint32', 2)
         pair['name'] = self.su.string()
         
-        type = self.su.uint32()
-        n = self.su.uint32() 
+        type, n = self.su.repeat('uint32', 2)
         type = DATA_TYPE[type]
         # Adjust the elments number, only array type has more than one elements.
         # We did not check malformed file format here
