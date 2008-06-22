@@ -15,15 +15,71 @@ INSTALL
 
 Examples
 
-    >>> from zfspy import *
-    >>> pools = ZPool.import_cached()
-    >>> pools
-    [<ZPool 'app'>, <ZPool 'db'>]
-    >>> app = pools[0]
-    >>> app.name
-    'app'
-    >>> app.state
-    0
-    >>> app.pool_guid
-    5617275442596158925L
+    import package
+
+        >>> from zfspy import *
+
+    get pools
+
+        >>> pools = ZPool.import_cached()
+        >>> pools
+        [<ZPool 'app'>, <ZPool 'db'>]
+
+    print pool status
+
+        >>> app = pools[0]
+        >>> app.status()
+          pool: app
+         state: ACTIVE
+        config:
+                ROOT
+                  MIRROR
+                    FILE /chenz/disk1
+                    FILE /chenz/disk2
+                  MIRROR
+                    FILE /chenz/disk3
+                    FILE /chenz/disk4
+
+    get pool vdev
+         >>> app.vdev
+        {'mirror': [['/chenz/disk1', '/chenz/disk2'], ['/chenz/disk3', '/chenz/disk4']]}
+        >>> app.vdev.mirror
+        [['/chenz/disk1', '/chenz/disk2'], ['/chenz/disk3', '/chenz/disk4']]
+
+    read vdev lable
+
+        >>> vl = VDevLabel('/chenz/disk1')
+        >>> from pprint import pprint
+        >>> pprint(vl.data)
+        {'guid': 18154330009430908299L,
+         'hostid': 8323329,
+         'hostname': 'ideer',
+         'name': 'app',
+         'pool_guid': 5617275442596158925L,
+         'state': 0,
+         'top_guid': 5351987517292081222L,
+         'txg': 4,
+         'vdev_tree': {'ashift': 9,
+                       'asize': 263716864,
+                       'children': [{'guid': 18154330009430908299L,
+                                     'id': 0,
+                                     'path': '/chenz/disk1',
+                                     'type': 'file'},
+                                    {'guid': 5077680094936758667L,
+                                     'id': 1,
+                                     'path': '/chenz/disk2',
+                                     'type': 'file'}],
+                       'guid': 5351987517292081222L,
+                       'id': 0,
+                       'is_log': 0,
+                       'metaslab_array': 17,
+                       'metaslab_shift': 21,
+                       'type': 'mirror'},
+         'version': 10}
+        >>> vl
+        <VDevLabel '/chenz/disk1'>
+        >>> vl.dev
+        '/chenz/disk1'
+        >>> vl.active_uberblock.ub_txg
+        1536
 
