@@ -41,14 +41,34 @@ Examples
                     FILE /chenz/disk4
 
     get pool vdev
+
          >>> app.vdev
         {'mirror': [['/chenz/disk1', '/chenz/disk2'], ['/chenz/disk3', '/chenz/disk4']]}
         >>> app.vdev.mirror
         [['/chenz/disk1', '/chenz/disk2'], ['/chenz/disk3', '/chenz/disk4']]
 
-    read vdev lable
+    load vdev
 
-        >>> vl = VDevLabel('/chenz/disk1')
+        >>> spa = SPA()
+        >>> spa.vdev_load('/chenz/disk1')
+        [<VDevLabel 'txg 4'>, <VDevLabel 'txg 4'>, <VDevLabel 'txg 4'>, <VDevLabel 'txg 4'>]
+
+    find active uber_block and ub_rootbp
+
+        >>> labels = spa.vdev_load('/chenz/disk1')
+        >>> labels[0].ubbest
+        <UberBlock 'ub_txg 3553 ub_timestamp 1214147098'>
+        >>> labels[0].ubbest.ub_rootbp
+        <BlockPtr 
+           DVA[0]=<0:c587400:200>
+           DVA[1]=<1:9c58400:200>
+           DVA[2]=<0:f42d200:200>
+           DMU_OT_OBJSET fletcher4 lzjb birth=3553 fill=186
+           chksum=968b8e8cf:3ede381dce2:d52bcd7233f8:1e901a03a9d308>
+
+    check label nvlist
+
+        >>> vl = labels[0]
         >>> from pprint import pprint
         >>> pprint(vl.data)
         {'guid': 18154330009430908299L,
@@ -75,11 +95,4 @@ Examples
                        'metaslab_array': 17,
                        'metaslab_shift': 21,
                        'type': 'mirror'},
-         'version': 10}
-        >>> vl
-        <VDevLabel '/chenz/disk1'>
-        >>> vl.dev
-        '/chenz/disk1'
-        >>> vl.active_uberblock.ub_txg
-        1536
 
