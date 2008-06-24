@@ -28,6 +28,27 @@ def hexprint(data):
                 print c,
         print
 
+
+def split_records(data, record_size):
+    """
+    Split records array into a record list
+    """
+    n = len(data) / record_size
+    for i in range(n):
+        yield data[i * record_size : (i + 1) * record_size ]
+
+def get_record(data, record_size, index):
+    """
+    get one record
+    """
+    return data[index * record_size : (index + 1) * record_size ]
+
+
+
+
 if __name__ == '__main__':
     a = get_bits(0x62c3a, 0, 63)
     print '%x' % (a << 9)
+
+    for a in split_records('abcdefgh', 2):
+        print a

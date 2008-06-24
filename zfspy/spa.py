@@ -113,8 +113,8 @@ class BlockPtr(OODict):
         if data:
             self.dva = []
             dva_size = 16 
-            for i in range(3):
-                self.dva.append(self._parse_dva(data[i * dva_size : (i + 1) * dva_size]))
+            for dva in split_records(data[0 : dva_size * 3], dva_size):
+                self.dva.append(self._parse_dva(dva))
             su = StreamUnpacker(data[dva_size * 3 :])
             i = su.uint64()
             #see lib/libzfscommon/include/sys/spa.h
@@ -197,16 +197,17 @@ class VDevLabel(object):
         # find the active uberblock
         ub_array = data[128 << 10 :] 
         ubbest = None
-        for i in range(VDEV_UBERBLOCK_COUNT):
-            data = ub_array[i * UBERBLOCK_SIZE: (i+1) * UBERBLOCK_SIZE]
+        i = 0
+        for data in split_records(ub_array, UBERBLOCK_SIZE):
             ub = UberBlock(data)
             ub.index = i
+            i = i + 1
             if ub.ub_magic ==  0x00bab10c or ub.ub_magic ==  0x0cb1ba00:
                 if ubbest == None:
                     ubbest = ub
                 if ub.ub_txg >= ubbest.ub_txg and ub.ub_timestamp > ubbest.ub_timestamp:
                     ubbest = ub
-        data = ub_array[ubbest.index * UBERBLOCK_SIZE: (ubbest.index+1) * UBERBLOCK_SIZE]
+        data = get_record(ub_array, UBERBLOCK_SIZE, ubbest.index)
         ubbest.ub_rootbp = BlockPtr(data[40: 168])
         self.ubbest = ubbest
          
