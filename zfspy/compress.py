@@ -1,5 +1,69 @@
 from util import *
 
+
+max_offset = 1023
+max_matched_len = 66
+
+def find_match(data, start, str):
+    if start >= str:
+        return (None, None)
+    str_len = len(data) - str
+    if str_len < 3: # we must ensure we have at least 3 char to match
+        return (None, None)
+    # see if we can find the next 3 chars from start
+    p = data[start:str].find(data[str:str+3])
+    if p < 0:
+        return (None, None)
+    p = p + start # offset in data
+    matched_len = 0
+    # find the longest common beginning 
+    while matched_len < str_len:
+        if data[p + matched_len] != data[str + matched_len]:
+            break
+        else:
+            matched_len = matched_len + 1
+    if matched_len > max_matched_len:
+        matched_len = max_matched_len
+    return (str - p, matched_len)
+        
+
+def lzjb_compress(data):
+    """
+    for each map, there are 8 items, a item is:
+        a match:
+                look backward max_offset at most
+                match length greater than 3, and less than max_offset
+        else just a literal item  
+
+    """
+    encoded_data = ''
+    l = len(data)
+    i = 0
+    while i < l:
+        map = 0 
+        cache = ''
+
+        for n in range(8):
+            search_start = i - max_offset
+            if search_start < 0:
+                search_start = 0
+            offset, matched_len = find_match(data, search_start, i)
+            if matched_len: # match
+                cache = cache + chr(((matched_len - 3) << 2) | (offset >> 8)) + chr(get_bits(offset, 0, 8))
+                i = i + matched_len
+                map = set_bit(map, n)
+            else: # literal
+                cache = cache + data[i]
+                i = i +1
+            # there are less than 8 items
+            if i >= l:
+                encoded_data = encoded_data + chr(map) + cache
+                return encoded_data
+        # save the control byte map and 8 items cache
+        encoded_data = encoded_data + chr(map) + cache
+    
+    return encoded_data
+
 def lzjb_decompress(encoded_data):
     """
     We dont care about the decode data length, we treat the encoded_data as all useful
@@ -16,13 +80,15 @@ def lzjb_decompress(encoded_data):
         map = ord(encoded_data[i]) # get map
         i = i + 1
         for n in range(8):
-            if i >= l:
-                #print 'possible corrupt data, not enough item found n=', n
-                return data
             if get_bits(map, n, 1) == 0:
+                if i >= l:
+                    #print 'possible corrupt data, not enough item found n=', n
+                    return data
                 data = data + encoded_data[i] # origial data
                 i = i + 1
             else:
+                if i + 1 >= l:
+                    return None #it's surpposed that still 2 bytes left, must be corrupt 
                 # this is a copy item here
                 matched_len = get_bits(ord(encoded_data[i]), 2, 6) + 3 # high 6 bits
                 # low 2 bits of the first byte and the second byte
@@ -39,6 +105,12 @@ def lzjb_decompress(encoded_data):
 
 if __name__ == '__main__':
     E = '\x40yadda \x20\x06,\x20+blah\x1c\x05'
-    print lzjb_decompress(E)
-    E = '\x00\x00'
-    print len(lzjb_decompress(E))
+    M = 'yadda yadda yadda,+blah+blah+blah'
+    print 'E:'
+    hexprint(E)
+    print 'compressE:'
+    hexprint(lzjb_compress(M))
+    print 'M:'
+    hexprint(M)
+    print 'decompressM:'
+    hexprint(lzjb_decompress(E))
