@@ -118,8 +118,8 @@ class BlockPtr(OODict):
             su = StreamUnpacker(data[dva_size * 3 :])
             i = su.uint64()
             #see lib/libzfscommon/include/sys/spa.h
-            self.lsize = get_bits(i, 0, 16)
-            self.psize = get_bits(i, 16, 16)
+            self.lsize = (get_bits(i, 0, 16) + 1) << SPA_MINBLOCKSHIFT
+            self.psize = (get_bits(i, 16, 16) + 1) << SPA_MINBLOCKSHIFT
             self.comp = get_bits(i, 32, 8)
             self.cksum = get_bits(i, 40, 8)
             self.type = get_bits(i, 48, 8)
