@@ -1,3 +1,9 @@
+def set_bit(i, n):
+    """
+    set bit n, n unchanged, return a new n
+    """
+    return i | (1 << n)
+
 
 def get_bits(i, start, len):
     """
@@ -49,6 +55,9 @@ def get_record(data, record_size, index):
 if __name__ == '__main__':
     a = get_bits(0x62c3a, 0, 63)
     print '%x' % (a << 9)
+
+    i = 3
+    print set_bit(i, 0), set_bit(i, 1), set_bit(i, 7), set_bit(i, 8)
 
     for a in split_records('abcdefgh', 2):
         print a

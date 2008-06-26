@@ -1,5 +1,17 @@
-from util import *
+"""
+ZFSpy: Python bindings for ZFS
 
+Copyright (C) 2008 Chen Zheng <nkchenz@gmail.com>
+
+This file is licensed under the terms of the GNU General Public License
+version 2. This program is licensed "as is" without any warranty of any
+kind, whether express or implied.
+
+lzjb for Python
+
+"""
+
+from util import *
 
 max_offset = 1023
 max_matched_len = 66
@@ -10,7 +22,7 @@ def find_match(data, start, str):
     str_len = len(data) - str
     if str_len < 3: # we must ensure we have at least 3 char to match
         return (None, None)
-    # see if we can find the next 3 chars from start
+    # see if we can find the next 3 chars from start, we do not care about  multi ocurrences
     p = data[start:str].find(data[str:str+3])
     if p < 0:
         return (None, None)
