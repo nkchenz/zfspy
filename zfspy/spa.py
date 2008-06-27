@@ -11,39 +11,13 @@ import os
 from nvpair import NVPair, StreamUnpacker
 from oodict import OODict
 from util import *
+from zio import ZIO
 
 UBERBLOCK_SHIFT = 10
 UBERBLOCK_SIZE = 1 << UBERBLOCK_SHIFT
 VDEV_UBERBLOCK_COUNT = 128 << 10 >> UBERBLOCK_SHIFT
 SPA_MINBLOCKSHIFT = 9
-
-DMU_OBJTYPE = [
-'DMU_OT_NONE',
-'DMU_OT_OBJECT_DIRECTORY',
-'DMU_OT_OBJECT_ARRAY',
-'DMU_OT_PACKED_NVLIST',
-'DMU_OT_NVLIST_SIZE',
-'DMU_OT_BPLIST',
-'DMU_OT_BPLIST_HDR',
-'DMU_OT_SPACE_MAP_HEADER',
-'DMU_OT_SPACE_MAP',
-'DMU_OT_INTENT_LOG',
-'DMU_OT_DNODE',
-'DMU_OT_OBJSET',
-'DMU_OT_DSL_DATASET',
-'DMU_OT_DSL_DATASET_CHILD_MAP',
-'DMU_OT_OBJSET_SNAP_MAP',
-'DMU_OT_DSL_PROPS',
-'DMU_OT_DSL_OBJSET',
-'DMU_OT_ZNODE',
-'DMU_OT_ACL',
-'DMU_OT_PLAIN_FILE_CONTENTS',
-'DMU_OT_DIRECTORY_CONTENTS',
-'DMU_OT_MASTER_NODE',
-'DMU_OT_DELETE_QUEUE',
-'DMU_OT_ZVOL',
-'DMU_OT_ZVOL_PROP',
-]
+VDEVLABEL_SIZE = 256 << 10
 
 class UberBlock(OODict):
     """ 
@@ -130,7 +104,7 @@ class BlockPtr(OODict):
                 self.endian = '>' # big
             self.cksum = ['unknown', 'on', 'off', 'label', 'gang header', 'zilog', 'fletcher2', 'fletcher4', 'SHA-256'][self.cksum]
             self.comp = ['unknown', 'on', 'off', 'lzjb'][self.comp]
-            self.type = DMU_OBJTYPE[self.type]
+            self.type = self.type
             su.rewind(-24) # skip 24b paddings
             self.birth_txg, self.fill_count = su.repeat('uint64', 2)
             self.checksum = []
@@ -152,12 +126,18 @@ class BlockPtr(OODict):
             dva.G = False
         return dva
 
+    def is_hole(self):
+        """
+        lib/libzfscommon/include/sys/spa.h:275:#define  BP_IS_HOLE(bp)      ((bp)->blk_birth == 0)
+        """
+        return self.birth_txg == 0
+
     def __repr__(self):
         s = ''
         for i in range(3):
             dva = self.dva[i]
-            s = s + '   DVA[%d]=<%s:%x:%x>\n' % (i, dva.vdev, dva.offset, dva.asize)
-        s = s + '   %s %s %s birth=%d fill=%d\n' % (self.type, self.cksum, self.comp, self.birth_txg, self.fill_count)
+            s = s + '   DVA[%d]=<%s:%x:%x> G=%s\n' % (i, dva.vdev, dva.offset, dva.asize, dva.G)
+        s = s + '   %s %s %s birth=%d fill=%d lsize=%d psize=%d\n' % (self.type, self.cksum, self.comp, self.birth_txg, self.fill_count, self.lsize, self.psize)
         a = []
         for i in self.checksum:
             a.append('%x' % i)
@@ -214,28 +194,24 @@ class VDevLabel(object):
     def __repr__(self):
         return '<VDevLabel \'txg %s\'>' % self.data.txg 
 
-        
+
 class SPA(object):
 
     def __init__(self):
         pass
 
-
-    def vdev_load(self, dev):
+    def load_labels(self, dev):
         """
         Load vdev label informations, return the four labels
 
         Return
             [VDevLabel]
         """
-        f = open(dev, 'rb')
         l = []
-        l.append(VDevLabel(f.read(256 << 10)))
-        l.append(VDevLabel(f.read(256 << 10)))
-        f.seek(- (512  << 10), os.SEEK_END)
-        l.append(VDevLabel(f.read(256 << 10)))
-        l.append(VDevLabel(f.read(256 << 10)))
-        f.close()
+        l.append(VDevLabel(ZIO.read(dev, 0, VDEVLABEL_SIZE)))
+        l.append(VDevLabel(ZIO.read(dev, VDEVLABEL_SIZE, VDEVLABEL_SIZE)))
+        l.append(VDevLabel(ZIO.read(dev, -VDEVLABEL_SIZE * 2, VDEVLABEL_SIZE, 2)))
+        l.append(VDevLabel(ZIO.read(dev, -VDEVLABEL_SIZE, VDEVLABEL_SIZE, 2)))
         return l
 
     def __repr__(self):
@@ -246,8 +222,9 @@ if __name__ == '__main__':
     from pprint import pprint
 
     spa = SPA()
-    labels = spa.vdev_load('/chenz/disk4')
+    labels = spa.load_labels('/chenz/disk4')
     for l in labels:
+        print l.data
         print l.ubbest
         print l.ubbest.ub_rootbp
 

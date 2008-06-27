@@ -49,8 +49,8 @@ def get_record(data, record_size, index):
     """
     return data[index * record_size : (index + 1) * record_size ]
 
-
-
+def debug(s):
+    print s
 
 if __name__ == '__main__':
     a = get_bits(0x62c3a, 0, 63)
