@@ -16,7 +16,7 @@ class ZIO:
     def read_blk(cls, vdev, bp):
         """
         read the block pointed to by bp
-            @vdev_tree  the vdev_tree in vdev_label, we need it to find the real dev
+            @vdev       the vdev_tree in vdev_label, we need it to find the real dev
                         by dva[0].vdev index
             @bp         block pointer
         """

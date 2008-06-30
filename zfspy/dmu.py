@@ -110,11 +110,10 @@ class DNode(OODict):
         maxblkid is the max id of level 0 blocks, so the max object number in this dnode is
             (datablkszsec << 9) / DNODE_SIZE * maxblkid
         """
-        print index, 
         bp_per_indirectblk = (1 << self.indblkshift) / BlockPtr_SIZE
         object_per_level0blk = (self.datablkszsec << 9) / DNODE_SIZE
         if index < 0 or index >= object_per_level0blk * self.maxblkid: #invalid index range
-            print 'out of range'
+            debug('object index %d out of range' % index)
             return None
        
         # compute offset of every level from bottom to top
@@ -126,7 +125,7 @@ class DNode(OODict):
             blkid, offset = blkid / bp_per_indirectblk, blkid % bp_per_indirectblk
             map.append((blkid, offset))
         #print 'maxblkid:', self.maxblkid, 'bp_per_indirectblk:', bp_per_indirectblk, 'object_per_level0blk:', object_per_level0blk
-        print map
+        debug('levels offset for object %d: %s' % (index, map))
 
         # top level only can have 3 blocks at most, its blkid must be less than 
         # the number of real blkptr we have. if it's greater than 3, it means that
@@ -141,7 +140,7 @@ class DNode(OODict):
         for level in levels: 
             # offset in blk really matters, blkid in level doesn't
             offset = map[level][1]
-            print 'level%d' % level, 'offset:', offset 
+            debug('level: %d  offset: %d' % (level, offset ))
             blk_data = ZIO.read_blk(self.vdev, bp)
             if level == 0:            
                 return DNode(self.vdev, get_record(blk_data, DNODE_SIZE, offset))

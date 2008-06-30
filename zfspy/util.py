@@ -32,6 +32,8 @@ def hexprint(data):
         for c in line:
             if c.isalpha():
                 print c,
+            else:
+                print '.',
         print
 
 

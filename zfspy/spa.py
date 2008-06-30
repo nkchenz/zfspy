@@ -136,13 +136,13 @@ class BlockPtr(OODict):
         s = ''
         for i in range(3):
             dva = self.dva[i]
-            s = s + '   DVA[%d]=<%s:%x:%x> G=%s\n' % (i, dva.vdev, dva.offset, dva.asize, dva.G)
-        s = s + '   %s %s %s birth=%d fill=%d lsize=%d psize=%d\n' % (self.type, self.cksum, self.comp, self.birth_txg, self.fill_count, self.lsize, self.psize)
+            s = s + 'DVA[%d]=<%s:%x:%x> G=%s' % (i, dva.vdev, dva.offset, dva.asize, dva.G)
+        s = s + '%s %s type=%d birth=%d fill=%d lsize=%d psize=%d' % (self.cksum, self.comp, self.type, self.birth_txg, self.fill_count, self.lsize, self.psize)
         a = []
         for i in self.checksum:
             a.append('%x' % i)
-        s = s + '   chksum=' + ':'.join(a) 
-        return '<BlockPtr \n%s>' % s 
+        s = s + 'chksum=' + ':'.join(a) 
+        return '<BlockPtr %s>' % s 
 
 
 class VDevLabel(object):
