@@ -136,8 +136,8 @@ class BlockPtr(OODict):
         s = ''
         for i in range(3):
             dva = self.dva[i]
-            s = s + 'DVA[%d]=<%s:%x:%x> G=%s' % (i, dva.vdev, dva.offset, dva.asize, dva.G)
-        s = s + '%s %s type=%d birth=%d fill=%d lsize=%d psize=%d' % (self.cksum, self.comp, self.type, self.birth_txg, self.fill_count, self.lsize, self.psize)
+            s = s + 'DVA[%d]=<%s:%x:%x G=%s> ' % (i, dva.vdev, dva.offset, dva.asize, dva.G)
+        s = s + '%s %s type=%d birth=%d fill=%d lsize=%d psize=%d ' % (self.cksum, self.comp, self.type, self.birth_txg, self.fill_count, self.lsize, self.psize)
         a = []
         for i in self.checksum:
             a.append('%x' % i)
@@ -175,6 +175,7 @@ class VDevLabel(object):
         self.nvlist = NVPair.unpack(data[16 << 10: 128 << 10])
         self.data = NVPair.strip(self.nvlist['value'])
         # find the active uberblock
+        debug('find ubbest')
         ub_array = data[128 << 10 :] 
         ubbest = None
         i = 0
@@ -185,8 +186,10 @@ class VDevLabel(object):
             if ub.ub_magic ==  0x00bab10c or ub.ub_magic ==  0x0cb1ba00:
                 if ubbest == None:
                     ubbest = ub
-                if ub.ub_txg >= ubbest.ub_txg and ub.ub_timestamp > ubbest.ub_timestamp:
+                if ub.ub_txg >= ubbest.ub_txg and ub.ub_timestamp >= ubbest.ub_timestamp:
                     ubbest = ub
+                debug('current: %d %d %d ubbest:%d %d %d' % (ub.index, ub.ub_txg, ub.ub_timestamp, \
+                            ubbest.index, ubbest.ub_txg, ubbest.ub_timestamp))
         data = get_record(ub_array, UBERBLOCK_SIZE, ubbest.index)
         ubbest.ub_rootbp = BlockPtr(data[40: 168])
         self.ubbest = ubbest
