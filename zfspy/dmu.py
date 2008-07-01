@@ -31,19 +31,32 @@ DMU_OBJTYPE = [
 'DMU_OT_INTENT_LOG',
 'DMU_OT_DNODE',
 'DMU_OT_OBJSET',
-'DMU_OT_DSL_DATASET',
-'DMU_OT_DSL_DATASET_CHILD_MAP',
-'DMU_OT_OBJSET_SNAP_MAP',
+'DMU_OT_DSL_DIR',
+'DMU_OT_DSL_DIR_CHILD_MAP',
+'DMU_OT_DSL_DS_SNAP_MAP',
 'DMU_OT_DSL_PROPS',
-'DMU_OT_DSL_OBJSET',
+'DMU_OT_DSL_DATASET',
 'DMU_OT_ZNODE',
-'DMU_OT_ACL',
+'DMU_OT_OLDACL',
 'DMU_OT_PLAIN_FILE_CONTENTS',
 'DMU_OT_DIRECTORY_CONTENTS',
 'DMU_OT_MASTER_NODE',
-'DMU_OT_DELETE_QUEUE',
+'DMU_OT_UNLINKED_SET',
 'DMU_OT_ZVOL',
 'DMU_OT_ZVOL_PROP',
+'DMU_OT_PLAIN_OTHER',
+'DMU_OT_UINT64_OTHER',
+'DMU_OT_ZAP_OTHER',
+'DMU_OT_ERROR_LOG',	
+'DMU_OT_SPA_HISTORY',
+'DMU_OT_SPA_HISTORY_OFFSETS',
+'DMU_OT_POOL_PROPS',
+'DMU_OT_DSL_PERMS',
+'DMU_OT_ACL',
+'DMU_OT_SYSACL',
+'DMU_OT_FUID',	
+'DMU_OT_FUID_SIZE',
+'DMU_OT_NUMTYPES'
 ]
 
 DMU_OBJSET_TYPE = [
@@ -99,53 +112,6 @@ class DNode(OODict):
                 self.blkptr.append(bp)
         self.bonus = data[bonus_offset : bonus_offset + self.bonuslen]
 
-    def get_object(self, index):
-        """
-        Get the object by index from level 0 blocks
-        
-        indirect block onlys contain block pointers, its size is 1 << indblkshift. level 0 block
-        contains dnode_phys_t, is data block, size is datablkszsec << 9. object index is only about
-        level 0 blocks.
-
-        maxblkid is the max id of level 0 blocks, so the max object number in this dnode is
-            (datablkszsec << 9) / DNODE_SIZE * maxblkid
-        """
-        bp_per_indirectblk = (1 << self.indblkshift) / BlockPtr_SIZE
-        object_per_level0blk = (self.datablkszsec << 9) / DNODE_SIZE
-        if index < 0 or index >= object_per_level0blk * self.maxblkid: #invalid index range
-            debug('object index %d out of range' % index)
-            return None
-       
-        # compute offset of every level from bottom to top
-        map = []
-        blkid = index / object_per_level0blk
-        offset = index %  object_per_level0blk
-        map.append((blkid, offset))
-        for level in range(1, self.nlevels):
-            blkid, offset = blkid / bp_per_indirectblk, blkid % bp_per_indirectblk
-            map.append((blkid, offset))
-        #print 'maxblkid:', self.maxblkid, 'bp_per_indirectblk:', bp_per_indirectblk, 'object_per_level0blk:', object_per_level0blk
-        debug('levels offset for object %d: %s' % (index, map))
-
-        # top level only can have 3 blocks at most, its blkid must be less than 
-        # the number of real blkptr we have. if it's greater than 3, it means that
-        # we should have one more level then.
-        toplevel_blkid = map[-1][0]
-        if toplevel_blkid >= len(self.blkptr):
-            return None
-
-        bp = self.blkptr[toplevel_blkid]
-        levels = range(self.nlevels)
-        levels.reverse()
-        for level in levels: 
-            # offset in blk really matters, blkid in level doesn't
-            offset = map[level][1]
-            debug('level: %d  offset: %d' % (level, offset ))
-            blk_data = ZIO.read_blk(self.vdev, bp)
-            if level == 0:            
-                return DNode(self.vdev, get_record(blk_data, DNODE_SIZE, offset))
-            bp = BlockPtr(get_record(blk_data, BlockPtr_SIZE, offset))
-
 class OBJSet(object):
     """
     1k
@@ -161,6 +127,55 @@ class OBJSet(object):
         zil_header_end = DNODE_SIZE + ZIL_HEADER_SIZE
         self.zil_header = data[DNODE_SIZE: zil_header_end]
         self.os_type = DMU_OBJSET_TYPE[StreamUnpacker(data[zil_header_end: zil_header_end + 8]).uint64()]
+
+    def get_object(self, index):
+        """
+        Get the object by index from level 0 blocks
+        
+        indirect block onlys contain block pointers, its size is 1 << indblkshift. level 0 block
+        contains dnode_phys_t, is data block, size is datablkszsec << 9. object index is only about
+        level 0 blocks.
+
+        maxblkid is the max id of level 0 blocks, so the max object number in this dnode is
+            (datablkszsec << 9) / DNODE_SIZE * maxblkid
+        """
+        md = self.meta_dnode
+        bp_per_indirectblk = (1 << md.indblkshift) / BlockPtr_SIZE
+        object_per_level0blk = (md.datablkszsec << 9) / DNODE_SIZE
+        if index < 0 or index >= object_per_level0blk * md.maxblkid: #invalid index range
+            debug('object index %d out of range' % index)
+            return None
+       
+        # compute offset of every level from bottom to top
+        map = []
+        blkid = index / object_per_level0blk
+        offset = index %  object_per_level0blk
+        map.append((blkid, offset))
+        for level in range(1, md.nlevels):
+            blkid, offset = blkid / bp_per_indirectblk, blkid % bp_per_indirectblk
+            map.append((blkid, offset))
+        #print 'maxblkid:', self.maxblkid, 'bp_per_indirectblk:', bp_per_indirectblk, 'object_per_level0blk:', object_per_level0blk
+        debug('levels offset for object %d: %s' % (index, map))
+
+        # top level only can have 3 blocks at most, its blkid must be less than 
+        # the number of real blkptr we have. if it's greater than 3, it means that
+        # we should have one more level then.
+        toplevel_blkid = map[-1][0]
+        if toplevel_blkid >= len(md.blkptr):
+            return None
+
+        bp = md.blkptr[toplevel_blkid]
+        levels = range(md.nlevels)
+        levels.reverse()
+        for level in levels: 
+            # offset in blk really matters, blkid in level doesn't
+            offset = map[level][1]
+            debug('level: %d  offset: %d' % (level, offset ))
+            blk_data = ZIO.read_blk(md.vdev, bp)
+            if level == 0:            
+                return DNode(md.vdev, get_record(blk_data, DNODE_SIZE, offset))
+            bp = BlockPtr(get_record(blk_data, BlockPtr_SIZE, offset))
+
 
     def __repr__(self):
         pass
@@ -180,14 +195,15 @@ if __name__ == '__main__':
     l1 = labels[0] 
     bp = l1.ubbest.ub_rootbp
     vdev = l1.data.vdev_tree
+    # vdev_tree in a label of one leaf vdev don't contain all the vdev in the pool
+    # so how to find blocks on under other mirrors or interlevel vdevs?
     data = ZIO.read_blk(vdev, bp)
 
 
     mos = OBJSet(vdev, data)
     print mos.os_type
-    print mos.meta_dnode
 
-    obj_dir = mos.meta_dnode.get_object(1)
+    obj_dir = mos.get_object(1)
     print obj_dir
     
     import doctest
