@@ -14,6 +14,7 @@ from spa import SPA
 from dmu import OBJSet
 from zio import ZIO
 from util import *
+from dsl import DSLDataSet, DSLDir
 
 ZAP_OBJ_TYPE = [
 'DMU_OT_OBJECT_DIRECTORY',
@@ -52,7 +53,7 @@ class ZAP(object):
     def __init__(self, data):
         self.type = StreamUnpacker(data[:8]).uint64()
         if self.type == ZBT_MICRO:
-            debug('found mzap')
+            debug('mzap init')
             self._mzap(data)
 
     def _mzap(self, data):
@@ -63,24 +64,52 @@ class ZAP(object):
             name = ent[14:MZAP_NAME_LEN].strip('\00')
             if name:
                 self.entries[name] = value
-        debug(self.entries)
+        debug('mzap entries: %s' % self.entries)
 
     def __repr__(self):
-        return '<ZAP>'
+        return '<ZAP %s>' % self.entries
 
 if __name__ == '__main__':
     spa = SPA()
-    labels = spa.load_labels('/chenz/disk1')
+    labels = spa.load_labels('/chenz/disk3')
     l1 = labels[0] 
     bp = l1.ubbest.ub_rootbp
     vdev = l1.data.vdev_tree
     data = ZIO.read_blk(vdev, bp)
     mos = OBJSet(vdev, data)
 
-    obj_dir = mos.meta_dnode.get_object(1)
+    obj_dir = mos.get_object(1)
     debug('object_directory: %s' % obj_dir)
     value = ZIO.read_blk(obj_dir.vdev, obj_dir.blkptr[0])
     mzap = ZAP(value)
+
+    root_dataset = mos.get_object(mzap.entries.root_dataset)
+    debug('root_dataset: %s' % root_dataset)
+
+    config = mos.get_object(mzap.entries.config)
+    debug('config: %s' % config)
+
+    sync_bplist = mos.get_object(mzap.entries.sync_bplist)
+    debug('sync_bplist: %s' % sync_bplist)
+
+    ds_dir = DSLDir(root_dataset.bonus)
+    debug('root dsl dir: %s' % ds_dir)
+
+    dnode = mos.get_object(ds_dir.dd_props_zapobj)
+    bp = dnode.blkptr[0]
+    value = ZIO.read_blk(mos.vdev, bp)
+    props = ZAP(value)
+    debug('props: %s' % props)
+
+    dnode = mos.get_object(ds_dir.dd_child_dir_zapobj)
+    bp = dnode.blkptr[0]
+    value = ZIO.read_blk(mos.vdev, bp)
+    child_dir = ZAP(value)
+    debug('child_dir: %s' % child_dir)
+
+    dnode = mos.get_object(ds_dir.dd_head_dataset_obj)
+    active_dataset = DSLDataSet(dnode.bonus)
+    debug('active dataset: %s' % active_dataset)
 
     import doctest
     doctest.testmod()
