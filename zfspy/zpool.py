@@ -36,6 +36,12 @@ class ZPool(object):
     def load(self):
         """
         Load root dataset from disks
+        
+        object_directory is the second element(index 1) in mos, it's a zap 
+        object, contains:
+            root_dataset DMU_OT_DSL_DIR
+            config DMU_OT_PACKED_NVLIST
+            sync_bplist DMU_OT_SYNC_BPLIST
         """
         vdev, self.ubbest = self.spa.find_ubbest()
         data = ZIO.read_blk(vdev, self.ubbest.ub_rootbp)

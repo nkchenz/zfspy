@@ -190,21 +190,6 @@ if __name__ == '__main__':
     arc_read -> zio_read -> zio_wait-> zio_excute
     
     """
-    spa = SPA()
-    labels = spa.load_labels('/chenz/disk1')
-    l1 = labels[0] 
-    bp = l1.ubbest.ub_rootbp
-    vdev = l1.data.vdev_tree
-    # vdev_tree in a label of one leaf vdev don't contain all the vdev in the pool
-    # so how to find blocks on under other mirrors or interlevel vdevs?
-    data = ZIO.read_blk(vdev, bp)
-
-
-    mos = OBJSet(vdev, data)
-    print mos.os_type
-
-    obj_dir = mos.get_object(1)
-    print obj_dir
     
     import doctest
     doctest.testmod()
