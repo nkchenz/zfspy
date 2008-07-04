@@ -178,7 +178,7 @@ class OBJSet(object):
 
 
     def __repr__(self):
-        pass
+        return '<OBJSet \'%s\'>' % self.os_type 
 
 if __name__ == '__main__':
     """

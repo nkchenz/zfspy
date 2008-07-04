@@ -200,8 +200,15 @@ class VDevLabel(object):
 
 class SPA(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, vdev_tree):
+        self.vdev = vdev_tree
+
+    def find_ubbest(self):
+        # which dev should we load from?
+        vdev = self.vdev.children[1]
+        labels = self.load_labels(vdev.children[0].path)
+        l1 = labels[0] 
+        return (vdev, l1.ubbest)
 
     def load_labels(self, dev):
         """
@@ -217,19 +224,29 @@ class SPA(object):
         l.append(VDevLabel(ZIO.read(dev, -VDEVLABEL_SIZE, VDEVLABEL_SIZE, 2)))
         return l
 
+    def status(self):
+        print 'config:'
+        print '       ', self.vdev.type.upper()
+        if 'children' in self.vdev:
+            for inter in self.vdev.children:
+                print '         ', 
+                if inter.is_log:
+                    print 'LOG',
+                print inter.type.upper(),
+                if 'children' in inter:
+                    print
+                    for leaf in inter.children:
+                         print '           ', leaf.type.upper(), leaf.path
+                else:
+                    print inter.path
+
+
     def __repr__(self):
         return '<SPA>' 
 
 
 if __name__ == '__main__':
     from pprint import pprint
-
-    spa = SPA()
-    labels = spa.load_labels('/chenz/disk4')
-    for l in labels:
-        print l.data
-        print l.ubbest
-        print l.ubbest.ub_rootbp
 
     import doctest
     doctest.testmod()

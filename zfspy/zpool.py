@@ -8,9 +8,14 @@ version 2. This program is licensed "as is" without any warranty of any
 kind, whether express or implied.
 """
 import os
+import conf
 from nvpair import NVPair
 from oodict import OODict
-import conf
+from spa import *
+from dmu import *
+from zap import *
+from dsl import *
+from zpl import *
 
 class ZPool(object):
     """
@@ -23,61 +28,32 @@ class ZPool(object):
     """
 
     def __init__(self, data = None):
-        # there maybe some other pool attrs we do not cover, please advice
-        self.name = ''
-        self.version = 1
-        self.state = 0
-        self.txg = 0
-        self.pool_guid = 0
-        self.hostid = 0
-        self.hostname = ''
-        self.vdev_tree = None
-        self.vdev = OODict() 
         if data: 
             for k, v in data.items():
                 self.__setattr__(k, v)
+            self.spa = SPA(self.vdev_tree)
 
-            # Gather vdev infos, vdev['disk'], vdev['file'], vdev['mirror'], etc.
-            for inter in self.vdev_tree.children:
-                if 'children' in inter:
-                    devs = []
-                    for leaf in inter.children:
-                         devs.append(leaf.path)
-                else:
-                    devs = inter.path
-                self.vdev.setdefault(inter.type, []).append(devs)
-
-
-    def datasets(self):
+    def load(self):
         """
-        Get all datasets in this pool
-
-        Returns
-            zfspy.DataSet
+        Load root dataset from disks
         """
-        pass
+        vdev, self.ubbest = self.spa.find_ubbest()
+        data = ZIO.read_blk(vdev, self.ubbest.ub_rootbp)
+        self.mos = OBJSet(vdev, data)
+        self.object_directory = ZAP.from_dnode(self.mos, 1)
+
+        # get config, sync_bplist  here
+
+        # get root_dataset
+        self.dsl_dir = DSL_Dir(self.mos, self.object_directory.entries.root_dataset)
 
 
     def status(self):
         print '  pool:', self.name
         print ' state:', ['ACTIVE', 'EXPORTED', 'DESTROYED'][self.state]
-        print 'config:'
-        print '       ', self.vdev_tree.type.upper()
-        
-        if 'children' in self.vdev_tree:
-            for inter in self.vdev_tree.children:
-                print '         ', 
-                if inter.is_log:
-                    print 'LOG',
-                print inter.type.upper(),
-                if 'children' in inter:
-                    print
-                    for leaf in inter.children:
-                         print '           ', leaf.type.upper(), leaf.path
-                else:
-                    print inter.path
-
-
+        if self.spa:
+            self.spa.status()
+    
     @classmethod
     def import_cached(cls, cf = conf.ZPOOL_CACHE):
         """
@@ -103,10 +79,6 @@ class ZPool(object):
 
 
 if __name__ == '__main__':
-    pools = ZPool.import_cached()
-    for pool in pools:
-        pool.status()
-        print pool.vdev
     
     import doctest
     doctest.testmod()
