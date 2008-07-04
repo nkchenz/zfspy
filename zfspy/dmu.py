@@ -99,7 +99,8 @@ class DNode(OODict):
             return
         self.vdev = vdev
         su = StreamUnpacker(data)
-        self.type, self.indblkshift, self.nlevels, self.nblkptr, self.bonustype, self.checksum, self.compress, pad = su.repeat('uint8', 8)
+        self.type, self.indblkshift, self.nlevels, self.nblkptr, self.bonustype, \
+                   self.checksum, self.compress, pad = su.repeat('uint8', 8)
         self.type = DMU_OBJTYPE[self.type]
         self.datablkszsec, self.bonuslen = su.repeat('uint16', 2)
         su.rewind(-4)
@@ -111,6 +112,9 @@ class DNode(OODict):
             if not bp.is_hole():
                 self.blkptr.append(bp)
         self.bonus = data[bonus_offset : bonus_offset + self.bonuslen]
+
+        debug('dnode type=%s nlevels=%s nblkptr=%s bonustype=%s maxblkid=%s' %  \
+                (self.type, self.nlevels, self.nblkptr, self.bonustype, self.maxblkid))
 
 class OBJSet(object):
     """
@@ -142,7 +146,11 @@ class OBJSet(object):
         md = self.meta_dnode
         bp_per_indirectblk = (1 << md.indblkshift) / BlockPtr_SIZE
         object_per_level0blk = (md.datablkszsec << 9) / DNODE_SIZE
-        if index < 0 or index >= object_per_level0blk * md.maxblkid: #invalid index range
+        # if maxblkid = 0, that means we have one block at least, so don't forget +1 here
+        max_object_id = object_per_level0blk * (md.maxblkid + 1)
+        debug('bp_per_indirectblk=%d object_per_level0blk=%d' %(bp_per_indirectblk, object_per_level0blk))
+        debug('max_object_id = %d' % (max_object_id - 1))
+        if index < 0 or index >= max_object_id: #invalid index range
             debug('object index %d out of range' % index)
             return None
        
@@ -154,7 +162,6 @@ class OBJSet(object):
         for level in range(1, md.nlevels):
             blkid, offset = blkid / bp_per_indirectblk, blkid % bp_per_indirectblk
             map.append((blkid, offset))
-        #print 'maxblkid:', self.maxblkid, 'bp_per_indirectblk:', bp_per_indirectblk, 'object_per_level0blk:', object_per_level0blk
         debug('levels offset for object %d: %s' % (index, map))
 
         # top level only can have 3 blocks at most, its blkid must be less than 
