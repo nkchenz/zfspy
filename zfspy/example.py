@@ -1,5 +1,5 @@
-from __init__ import *
-#from zfspy import *
+#from __init__ import *
+from zfspy import *
 
 from pprint import pprint
 
