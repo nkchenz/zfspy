@@ -1,9 +1,9 @@
-#from __init__ import *
-from zfspy import *
+from __init__ import *
+#from zfspy import *
 
 from pprint import pprint
 
-conf.debug = False
+conf.debug = True
 
 # get zpool info from /etc/zfs/zpool.cache
 print 'all pools found:'
@@ -40,32 +40,25 @@ ds = dir.head_dataset
 print ds
 print ds.snapnames
 
-"""DataSet
-    dsl_dataset
-    objset DMU_OST_ZFS
-    fs     current active fs
-    child  children datasets
+fs = ds.active_fs
+print fs.master_node
+print fs.version
 
-FS
-    snap   snaps of this dataset
-    master_node: delq, version, root
-    type 'filesystem', 'snapshot', 'clone'
-    open  open dir or file,  each dir is a DMU_OT_DIRECTORY
-    read  
-    touch 
-    create
-    diff
-    rm
+# open the top directory
+root = fs.open('')
+print root.dnode
+print root.znode
+print root.type
+print root.znode.acl
 
-File:
-    basic file object
+# get children files
+for f, i in root.entries.items():
+    print f, i 
 
-print fs.root
-dir = fs.open('kernel/linux')
+fs.ls('a/b/c')
+fs.ls('/ab/c/d')
 
-for file in fs.ls(dir):
-    print file
-
+"""
 fs.read(file)
 fs.diff(snapa, snapb)
 """

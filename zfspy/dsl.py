@@ -12,6 +12,8 @@ from oodict import OODict
 from spa import BlockPtr
 from dmu import OBJSet
 from zap import *
+from zio import *
+from zpl import FS
 
 class DSL_DataSet(OODict):
     """
@@ -33,7 +35,8 @@ class DSL_DataSet(OODict):
 
     def _load(self):
         self.snapnames = ZAP.from_dnode(self.objset, self.ds_snapnames_zapobj)
-
+        vdev = self.objset.vdev
+        self.active_fs = FS(OBJSet(vdev, ZIO.read_blk(vdev, self.ds_bp)))
 
     def prev_snap(self):
         """Return a prev snap dataset, should check whether we are at end of the list"""

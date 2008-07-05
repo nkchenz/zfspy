@@ -66,7 +66,9 @@ class ZAP(object):
     def from_dnode(cls, objset, i):
         dnode = objset.get_object(i)
         bp = dnode.blkptr[0]
-        return ZAP(ZIO.read_blk(objset.vdev, bp))
+        zap = ZAP(ZIO.read_blk(objset.vdev, bp))
+        zap.dnode = dnode # we'd better to save the dnode we came from
+        return zap
 
     def __repr__(self):
         return '<ZAP %s>' % self.entries
