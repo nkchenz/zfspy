@@ -139,6 +139,14 @@ class StreamUnpacker(object):
         self.pos = self.pos + len
         return self.data[start: start + len].strip('\x00')
 
+    def string0(self, buf_len):
+        """
+        Get a string end with zero in a buf, length of the buf is buf_len.
+        all the zeros are stripped.
+        """
+        s = self.read(buf_len).strip('\x00')
+        return s.split('\x00')[0]
+
     def rewind(self, offset):
         """
         Rewind pos of the stream
