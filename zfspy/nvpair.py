@@ -120,12 +120,15 @@ class StreamUnpacker(object):
     def hrtime(self):
         return self.unpack('Q', 8)[0]
 
+    def read(self, len):
+        """return binary data, length is len"""
+        tmp = self.pos
+        self.pos = self.pos + len
+        return self.data[tmp: self.pos]
+
     def string(self):
         """
         Get a string from the stream, string is leading by its length
-
-        @len
-            length of the string. if len = 0, then find a string endwith a zero
 
         Returns
             String, with tail zeros striped
