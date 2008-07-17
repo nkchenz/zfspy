@@ -87,6 +87,10 @@ class DSL_Dir(OODict):
         self.child_dir = ZAP.from_dnode(self.objset, self.dd_child_dir_zapobj)
         self.props = ZAP.from_dnode(self.objset, self.dd_props_zapobj)
 
+    def lookup_dataset(self, path):
+        """Look up a dataset in current dataset dir by path"""
+        pass
+
     def __repr__(self):
         return '<DSL_Dir>'
 
