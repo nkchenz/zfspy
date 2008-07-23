@@ -1,12 +1,16 @@
-ZFSpy: Python bindings for ZFS
-Copyright (C) 2008 Chen Zheng <nkchenz@gmail.com>
-
-    The initial purpose of ZFSpy is just writing a python module,
-    which can walk through the zfs filesystem, and can be used to 
-    learning zfs data structure, it's readonly.
+ZFSpy
     
-    A working zfs-fuse is needed to play with.
+    Python bindings for ZFS 
+    
+    Copyright (C) 2008 Chen Zheng <nkchenz@gmail.com> 
 
+    The purpose of this project is to write a python module, which 
+    can walk through the zfs filesystem, and can be used to learning
+    zfs data structure. zfs write is not supported yet. 
+
+    Distributed under GNU General Public License version 2.
+
+    A working zfs-fuse is needed to play with. 
 
 
 INSTALL
@@ -16,9 +20,5 @@ INSTALL
 
 Examples
 
-    import package
-
-        >>> from zfspy import *
-
-    see zfspy/example.py for examples
+    See zfspy/example.py.
 
