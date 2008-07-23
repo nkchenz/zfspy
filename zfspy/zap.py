@@ -51,6 +51,10 @@ class ZAP(object):
         if self.type == ZBT_MICRO:
             debug('mzap init')
             self._mzap(data)
+        else:
+            # fat zap here
+            debug('type=%x fat zap found' % self.type)
+            pass
 
     def _mzap(self, data):
         self.salt = StreamUnpacker(data[8:16]).uint64()

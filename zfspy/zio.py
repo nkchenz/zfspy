@@ -20,7 +20,7 @@ class ZIO:
                         by dva[0].vdev index
             @bp         block pointer
         """
-        dva = bp.dva[0]
+        dva = bp.dva[0] # Fixme, which dva should we use?
         dev = vdev.children[dva.vdev].path
         offset = dva.offset + (1 << 22)
         data = cls.read(dev, offset, bp.psize)

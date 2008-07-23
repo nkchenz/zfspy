@@ -3,7 +3,7 @@ from zfspy import *
 
 from pprint import pprint
 
-conf.debug = True
+#conf.debug = True
 
 # get zpool info from /etc/zfs/zpool.cache
 print 'all pools found:'
@@ -57,6 +57,14 @@ for f, i in root.entries.items():
 
 fs.ls('a/b/c')
 fs.ls('/ab/c/d')
+
+
+print app.dsl_dir.lookup_dataset('not_exists')
+print app.dsl_dir.lookup_dataset('src')
+print app.dsl_dir.lookup_dataset('src/a')
+print app.dsl_dir.lookup_dataset('src/a/b')
+print app.dsl_dir.lookup_dataset('/db/sqlite')
+
 
 """
 fs.read(file)

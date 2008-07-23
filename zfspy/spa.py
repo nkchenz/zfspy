@@ -188,8 +188,8 @@ class VDevLabel(object):
                     ubbest = ub
                 if ub.ub_txg >= ubbest.ub_txg and ub.ub_timestamp >= ubbest.ub_timestamp:
                     ubbest = ub
-                debug('current: %d %d %d ubbest:%d %d %d' % (ub.index, ub.ub_txg, ub.ub_timestamp, \
-                            ubbest.index, ubbest.ub_txg, ubbest.ub_timestamp))
+                debug('current index=%d txg=%d timestamp=%d ubbest index=%d txg=%d timestamp=%d' % \
+                        (ub.index, ub.ub_txg, ub.ub_timestamp, ubbest.index, ubbest.ub_txg, ubbest.ub_timestamp))
         data = get_record(ub_array, UBERBLOCK_SIZE, ubbest.index)
         ubbest.ub_rootbp = BlockPtr(data[40: 168])
         self.ubbest = ubbest
@@ -204,9 +204,13 @@ class SPA(object):
         self.vdev = vdev_tree
 
     def find_ubbest(self):
-        # which dev should we load from?
-        vdev = self.vdev.children[1]
-        labels = self.load_labels(vdev.children[0].path)
+        # Fixme: which dev should we load from?
+        vdev = self.vdev.children[0]
+        if 'children' not in vdev:
+            labels = self.load_labels(vdev.path)
+            vdev = self.vdev
+        else:
+            labels = self.load_labels(vdev.children[0].path)
         l1 = labels[0] 
         return (vdev, l1.ubbest)
 

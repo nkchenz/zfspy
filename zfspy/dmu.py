@@ -128,6 +128,11 @@ class OBJSet(object):
     def __init__(self, vdev, data):
         self.vdev = vdev
         self.meta_dnode = DNode(self.vdev, data[0:DNODE_SIZE])
+        
+        if self.meta_dnode.type != 'DMU_OT_DNODE':
+            print 'currupted objset'
+            return None
+
         zil_header_end = DNODE_SIZE + ZIL_HEADER_SIZE
         self.zil_header = data[DNODE_SIZE: zil_header_end]
         self.os_type = DMU_OBJSET_TYPE[StreamUnpacker(data[zil_header_end: zil_header_end + 8]).uint64()]

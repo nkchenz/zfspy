@@ -7,6 +7,7 @@ This file is licensed under the terms of the GNU General Public License
 version 2. This program is licensed "as is" without any warranty of any
 kind, whether express or implied.
 """
+from os.path import normpath, join
 from nvpair import StreamUnpacker
 from oodict import OODict
 from spa import BlockPtr
@@ -68,6 +69,9 @@ class DSL_Dir(OODict):
     def __init__(self, objset, obj_index):
         self.objset = objset
         self.dnode = objset.get_object(obj_index) # dnode of this object
+
+        # Fixme, we'd better to check the type of dnode before any further parsing begins
+
         # dsl_dir and dsl_dataset are in the bonus buffer of a dnode
         data = self.dnode.bonus
         f = StreamUnpacker(data)
@@ -86,10 +90,34 @@ class DSL_Dir(OODict):
         # we are not sure that it's a mzap here
         self.child_dir = ZAP.from_dnode(self.objset, self.dd_child_dir_zapobj)
         self.props = ZAP.from_dnode(self.objset, self.dd_props_zapobj)
-
+    
     def lookup_dataset(self, path):
-        """Look up a dataset in current dataset dir by path"""
-        pass
+        """
+        Lookup child dataset in current DSL_Dir.
+
+            @path  '', '/' both point to current dir
+                   '/a', 'a' both point to child 'a' in current dir if exists
+
+        Return
+            DSL_Dir. If path does't exists, return None.
+        """
+        path = normpath(join('/', path))
+        debug('lookup %s' % path)
+        levels = path.split('/')
+        levels.pop(0)
+        ds = self
+        if not levels[0]:
+            return ds # we are root
+        for level in levels:
+            parent = ds
+            if level not in parent.child_dir.entries:
+                return None # can't find this name
+
+            id = parent.child_dir.entries[level]
+            debug('name: %s id=%s' % (level, id))
+            # Fixme, do all the child obj sets always have the same objset as parent?
+            ds = DSL_Dir(parent.objset, id) # we assume the object is a dsl dir 
+        return ds
 
     def __repr__(self):
         return '<DSL_Dir>'
