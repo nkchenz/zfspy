@@ -21,7 +21,10 @@ class ZIO:
             @bp         block pointer
         """
         dva = bp.dva[0] # Fixme, which dva should we use?
-        dev = vdev.children[dva.vdev].path
+        if 'children' not in vdev:
+            dev = vdev.path  # type file, disk
+        else:
+            dev = vdev.children[dva.vdev].path # type mirror
         offset = dva.offset + (1 << 22)
         data = cls.read(dev, offset, bp.psize)
         if bp.comp == 'on' or bp.comp == 'lzjb':

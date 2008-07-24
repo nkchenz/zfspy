@@ -205,14 +205,17 @@ class SPA(object):
 
     def find_ubbest(self):
         # Fixme: which dev should we load from?
-        vdev = self.vdev.children[0]
-        if 'children' not in vdev:
-            labels = self.load_labels(vdev.path)
-            vdev = self.vdev
+        dev = self.vdev.children[0]
+        if 'children' not in dev:
+            path = dev.path
         else:
-            labels = self.load_labels(vdev.children[0].path)
+            path = dev.children[0].path
+        labels = self.load_labels(path)
         l1 = labels[0] 
-        return (vdev, l1.ubbest)
+
+        # vdev tree in label is used
+        debug('vdev_tree of label1: %s' % l1.data.vdev_tree)
+        return (l1.data.vdev_tree, l1.ubbest)
 
     def load_labels(self, dev):
         """
