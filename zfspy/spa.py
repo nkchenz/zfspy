@@ -46,7 +46,23 @@ class UberBlock(OODict):
         if data:
             su = StreamUnpacker(data)
             self.ub_magic, self.ub_version, self.ub_txg, self.ub_guid_sum, self.ub_timestamp = su.repeat('uint64', 5)
+    
+    def valid(self):
+        """check whether this ub is valid"""
+        return self.ub_magic ==  0x00bab10c or self.ub_magic ==  0x0cb1ba00
 
+    def better_than(self, ub):
+        """if self is better than ub, return True, else False"""
+        if self.ub_txg > ub.ub_txg:
+            return True
+        if self.ub_txg < ub.ub_txg:
+            return False
+        # txgs are equal, then compare timestamp
+        if self.ub_timestamp > ub.ub_timestamp:
+            return True
+        else:
+            return False
+             
     def __repr__(self):
         return '<UberBlock \'ub_txg %s ub_timestamp %s\'>' % (self.ub_txg, self.ub_timestamp)
 
@@ -183,13 +199,15 @@ class VDevLabel(object):
             ub = UberBlock(data)
             ub.index = i
             i = i + 1
-            if ub.ub_magic ==  0x00bab10c or ub.ub_magic ==  0x0cb1ba00:
-                if ubbest == None:
-                    ubbest = ub
-                if ub.ub_txg >= ubbest.ub_txg and ub.ub_timestamp >= ubbest.ub_timestamp:
-                    ubbest = ub
-                debug('current index=%d txg=%d timestamp=%d ubbest index=%d txg=%d timestamp=%d' % \
+            if not ub.valid():
+                continue
+            if not ubbest:
+                ubbest = ub
+            if ub.better_than(ubbest):
+                ubbest = ub
+            debug('current index=%d txg=%d timestamp=%d ubbest index=%d txg=%d timestamp=%d' % \
                         (ub.index, ub.ub_txg, ub.ub_timestamp, ubbest.index, ubbest.ub_txg, ubbest.ub_timestamp))
+        # use index here so we don't have to parse blockptr for every ub, that saves a lot
         data = get_record(ub_array, UBERBLOCK_SIZE, ubbest.index)
         ubbest.ub_rootbp = BlockPtr(data[40: 168])
         self.ubbest = ubbest
@@ -205,7 +223,7 @@ class SPA(object):
 
     def find_ubbest(self):
         # Fixme: which dev should we load from?
-        dev = self.vdev.children[0]
+        dev = self.vdev.children[1]
         if 'children' not in dev:
             path = dev.path
         else:
