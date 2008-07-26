@@ -53,6 +53,9 @@ class UberBlock(OODict):
 
     def better_than(self, ub):
         """if self is better than ub, return True, else False"""
+        if not ub:
+            return True
+
         if self.ub_txg > ub.ub_txg:
             return True
         if self.ub_txg < ub.ub_txg:
@@ -190,8 +193,8 @@ class VDevLabel(object):
         self.boot_header = data[8 << 10: 16 << 10]
         self.nvlist = NVPair.unpack(data[16 << 10: 128 << 10])
         self.data = NVPair.strip(self.nvlist['value'])
+
         # find the active uberblock
-        debug('find ubbest')
         ub_array = data[128 << 10 :] 
         ubbest = None
         i = 0
@@ -201,12 +204,8 @@ class VDevLabel(object):
             i = i + 1
             if not ub.valid():
                 continue
-            if not ubbest:
-                ubbest = ub
             if ub.better_than(ubbest):
                 ubbest = ub
-            debug('current index=%d txg=%d timestamp=%d ubbest index=%d txg=%d timestamp=%d' % \
-                        (ub.index, ub.ub_txg, ub.ub_timestamp, ubbest.index, ubbest.ub_txg, ubbest.ub_timestamp))
         # use index here so we don't have to parse blockptr for every ub, that saves a lot
         data = get_record(ub_array, UBERBLOCK_SIZE, ubbest.index)
         ubbest.ub_rootbp = BlockPtr(data[40: 168])
@@ -220,20 +219,25 @@ class SPA(object):
 
     def __init__(self, vdev_tree):
         self.vdev = vdev_tree
+        self.ubbest = None
+        self.labelbest = None
 
-    def find_ubbest(self):
-        # Fixme: which dev should we load from?
-        dev = self.vdev.children[1]
-        if 'children' not in dev:
-            path = dev.path
-        else:
-            path = dev.children[0].path
-        labels = self.load_labels(path)
-        l1 = labels[0] 
+    # what will happen if we have thousands of vdevs, do we have to read them all?
+    def vdev_ubbest_load(self, vdev):
+        """visit all the leaf vdevs to find the best ub"""
+        if 'children' in vdev:
+            for node in vdev.children:
+                self.vdev_ubbest_load(node)
+            return
 
-        # vdev tree in label is used
-        debug('vdev_tree of label1: %s' % l1.data.vdev_tree)
-        return (l1.data.vdev_tree, l1.ubbest)
+        for label in self.load_labels(vdev.path):
+            if label.ubbest.better_than(self.ubbest):
+                self.ubbest = label.ubbest
+                self.labelbest = label
+
+    def open(self):
+        self.vdev_ubbest_load(self.vdev)
+        debug('label best: %s' % self.labelbest.data)
 
     def load_labels(self, dev):
         """

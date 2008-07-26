@@ -43,8 +43,9 @@ class ZPool(object):
             config DMU_OT_PACKED_NVLIST
             sync_bplist DMU_OT_SYNC_BPLIST
         """
-        vdev, self.ubbest = self.spa.find_ubbest()
-        data = ZIO.read_blk(vdev, self.ubbest.ub_rootbp)
+        self.spa.open()
+        vdev = self.spa.labelbest.data.vdev_tree
+        data = ZIO.read_blk(vdev, self.spa.ubbest.ub_rootbp)
         self.mos = OBJSet(vdev, data)
         self.object_directory = ZAP.from_dnode(self.mos, 1)
 
