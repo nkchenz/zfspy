@@ -76,6 +76,14 @@ def lzjb_compress(data):
     
     return encoded_data
 
+
+def copy_matched(data, offset, matched_len):
+    tmp = data[offset:]
+    for i in range(matched_len):
+        tmp += tmp[i]
+    return data[:offset] + tmp
+
+
 def lzjb_decompress(encoded_data):
     """
     We dont care about the decode data length, we treat the encoded_data as all useful
@@ -103,16 +111,13 @@ def lzjb_decompress(encoded_data):
                     return None #it's surpposed that still 2 bytes left, must be corrupt 
                 # this is a copy item here
                 matched_len = get_bits(ord(encoded_data[i]), 2, 6) + 3 # high 6 bits
-                # low 2 bits of the first byte and the second byte
-                offset = (get_bits(ord(encoded_data[i]), 0, 2) << 8) + ord(encoded_data[i+1])
+                # low 2 bits of the first byte and the second byte, offset relative to current position
+                offset_curr = (get_bits(ord(encoded_data[i]), 0, 2) << 8) + ord(encoded_data[i+1])
                 i = i + 2
-                p = len(data) # current data pointer
-                for nn in range(matched_len):
-                    copy_p = p + nn - offset 
-                    if copy_p < 0:
-                        #print 'crrupt data, i=', i
-                        return None 
-                    data = data + data[copy_p]
+                offset = len(data) - offset_curr
+                if offset < 0 or offset >= len(data):
+                    return None
+                data = copy_matched(data, offset, matched_len)
     return data
 
 if __name__ == '__main__':
