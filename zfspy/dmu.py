@@ -116,6 +116,44 @@ class DNode(OODict):
         debug('dnode type=%s nlevels=%s nblkptr=%s bonustype=%s maxblkid=%s' %  \
                 (self.type, self.nlevels, self.nblkptr, self.bonustype, self.maxblkid))
 
+    def get_blk(self, id):
+        """
+        Get level0 block of this dnode by id
+        
+        indirect block onlys contain block pointers, its size is 1 << indblkshift. maxblkid is the max id
+        of level 0 blocks
+        """
+        bp_per_indirectblk = (1 << self.indblkshift) / BlockPtr_SIZE
+        if id > self.maxblkid:
+            return None
+        
+        debug('bp_per_indirectblk=%d, nlevels %d' %(bp_per_indirectblk, self.nlevels))
+
+        # compute offset of every level from bottom to top
+        map = []
+        blkid = id
+        for level in range(0, self.nlevels-1):
+            blkid, offset = blkid / bp_per_indirectblk, blkid % bp_per_indirectblk
+            map.append((blkid, offset))
+        debug('levels offset for blkid %d: %s' % (id, map))
+        toplevel_blkid = blkid
+        # top level only can have 3 blocks at most, its blkid must be less than 
+        # the number of real blkptr we have. if it's greater than 3, it means that
+        # we should have one more level then.
+        if toplevel_blkid >= len(self.blkptr):
+            return None
+        bp = self.blkptr[toplevel_blkid]
+        blk_data = ZIO.read_blk(self.vdev, bp)
+        levels = range(self.nlevels - 1)
+        levels.reverse()
+        for level in levels: 
+            # offset in blk really matters, blkid in level doesn't
+            offset = map[level][1]
+            debug('offset %d in level %d' % (offset, level))
+            bp = BlockPtr(get_record(blk_data, BlockPtr_SIZE, offset))
+            blk_data = ZIO.read_blk(self.vdev, bp)
+        return blk_data
+ 
 class OBJSet(object):
     """
     1k
@@ -149,44 +187,16 @@ class OBJSet(object):
             (datablkszsec << 9) / DNODE_SIZE * maxblkid
         """
         md = self.meta_dnode
-        bp_per_indirectblk = (1 << md.indblkshift) / BlockPtr_SIZE
         object_per_level0blk = (md.datablkszsec << 9) / DNODE_SIZE
-        # if maxblkid = 0, that means we have one block at least, so don't forget +1 here
-        max_object_id = object_per_level0blk * (md.maxblkid + 1)
-        debug('bp_per_indirectblk=%d object_per_level0blk=%d' %(bp_per_indirectblk, object_per_level0blk))
-        debug('max_object_id = %d' % (max_object_id - 1))
-        if index < 0 or index >= max_object_id: #invalid index range
+        blkid = index / object_per_level0blk
+        level0blk_offset = index % object_per_level0blk
+        debug('index %d, object_per_level0blk %d, blkid %d, level0blk_offset %d ' % \
+                (index, object_per_level0blk, blkid, level0blk_offset)) 
+        blk_data = md.get_blk(blkid)
+        if not blk_data:
             debug('object index %d out of range' % index)
             return None
-       
-        # compute offset of every level from bottom to top
-        map = []
-        blkid = index / object_per_level0blk
-        offset = index %  object_per_level0blk
-        map.append((blkid, offset))
-        for level in range(1, md.nlevels):
-            blkid, offset = blkid / bp_per_indirectblk, blkid % bp_per_indirectblk
-            map.append((blkid, offset))
-        debug('levels offset for object %d: %s' % (index, map))
-
-        # top level only can have 3 blocks at most, its blkid must be less than 
-        # the number of real blkptr we have. if it's greater than 3, it means that
-        # we should have one more level then.
-        toplevel_blkid = map[-1][0]
-        if toplevel_blkid >= len(md.blkptr):
-            return None
-
-        bp = md.blkptr[toplevel_blkid]
-        levels = range(md.nlevels)
-        levels.reverse()
-        for level in levels: 
-            # offset in blk really matters, blkid in level doesn't
-            offset = map[level][1]
-            debug('level: %d  offset: %d' % (level, offset ))
-            blk_data = ZIO.read_blk(md.vdev, bp)
-            if level == 0:            
-                return DNode(md.vdev, get_record(blk_data, DNODE_SIZE, offset))
-            bp = BlockPtr(get_record(blk_data, BlockPtr_SIZE, offset))
+        return DNode(md.vdev, get_record(blk_data, DNODE_SIZE, level0blk_offset))
 
 
     def __repr__(self):

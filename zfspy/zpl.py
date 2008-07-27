@@ -37,6 +37,47 @@ ZPL_FLAG ={
 
 ACL_T_SIZE = 16
 
+
+class ZFile(OODict):
+
+    def read(self):
+        id = 0
+        blk_size = self.dnode.datablkszsec << 9
+        data = ''
+        remain_len = self.znode.size 
+        while True:
+            buf = self.dnode.get_blk(id)
+            if id == self.dnode.maxblkid:
+                data += buf[:remain_len]
+                return data
+            else:
+                data += buf
+                remain_len -= blk_size
+            id += 1
+
+class ZDir(OODict):
+
+    def __init__(self):
+        self.entries = None
+
+    def read(self):
+        bp = self.dnode.blkptr[0]
+        zap = ZAP(ZIO.read_blk(self.dnode.vdev, bp))
+        # I can't find it in the code, but I can tell that the highest 2bits are flags
+        # not part of object id
+        for k, v in zap.entries.items():
+            zap.entries[k] = get_bits(v, 0, 62)
+        self.entries = zap.entries
+
+    def get_child(self, name):
+        # load contents first if haven't 
+        if not self.entries:
+            self.read()
+        if name not in self.entries:
+            return None
+        return self.entries[name]
+
+
 class ACL(OODict):
     def __init__(self, data):
         f = StreamUnpacker(data)
@@ -67,7 +108,7 @@ class ZNode(OODict):
         self.type = ZPL_FILE_TYPE[get_bits(self.mode, 12, 4)]
         self.acl = ACL(data[176:])
 
-class FS(object):
+class ZFS(object):
     """
     DMU_OST_ZFS: OBJSet
 
@@ -75,6 +116,8 @@ class FS(object):
         
     all fs objects contain a znode_phys_t in its dnode bonus buffer
     zfs_znode_acl 
+
+    literal meaning, stands for Zfs FS
     """
 
     def __init__(self, objset):
@@ -101,14 +144,18 @@ class FS(object):
         """
         Open dir or file by its object id
         """
-        file = OODict()
-        file = ZAP.from_dnode(self.objset, obj_id)
-        # I can't find it in the code, but I can tell that the highest 2bits are flags
-        # not part of object id
-        for k, v in file.entries.items():
-            file.entries[k] = get_bits(v, 0, 62)
-        file.znode = ZNode(file.dnode.bonus)
-        return file
+        dnode = self.objset.get_object(obj_id)
+        znode = ZNode(dnode.bonus)
+        if dnode.type == 'DMU_OT_DIRECTORY_CONTENTS':
+            f = ZDir()
+        else:
+            if dnode.type == 'DMU_OT_PLAIN_FILE_CONTENTS':
+                f = ZFile()
+            else:
+                return None
+        f.dnode = dnode
+        f.znode = znode
+        return f
 
     def lookup(self, path):
         """
@@ -123,36 +170,17 @@ class FS(object):
             return id # we are root
         for level in levels:
             parent = id
-            id = self._look_up_dir(parent, level)
+            dir = self.open_obj(parent)
+            if not isinstance(dir, ZDir):
+                return None
+            id = dir.get_child(level)
             debug('name: %s id=%s' % (level, id))
             if not id: # not found
                 return None
         return id
 
-    def _look_up_dir(self, parent, name):
-        """
-        look up entry by 'name' in dir 'parent'
-        """
-        dir = self.open_obj(parent)
-        if dir.dnode.type != 'DMU_OT_DIRECTORY_CONTENTS':
-            return None
-        for k, v in dir.entries.items():
-            if k == name:
-                return v
-        return None
-
-    def ls(self, path):
-        file = self.open(path)
-        if not file:
-            print '%s not exists' % path
-            return
-        if file.dnode.type != 'DMU_OT_DIRECTORY_CONTENTS':
-            return '%s is a file' %  path
-        for k, v in file.entries.items():
-            print k
-
     def __repr__(self):
-        return '<FS>'
+        return '<ZFS>'
 
 if __name__ == '__main__':
     

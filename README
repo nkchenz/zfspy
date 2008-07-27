@@ -1,7 +1,5 @@
 ZFSpy
-    
     Python bindings for ZFS 
-    
     Copyright (C) 2008 Chen Zheng <nkchenz@gmail.com> 
 
     The purpose of this project is to write a python module, which 
@@ -12,13 +10,12 @@ ZFSpy
 
     A working zfs-fuse is needed to play with. 
 
-
-INSTALL
+GIT
+    http://github.com/nkchenz/zfspy/tree/master
+    git clone git://github.com/nkchenz/zfspy.git 
     
+INSTALL
     python setup.py install
 
-
-Examples
-
-    See zfspy/example.py.
-
+WEB
+    http://code.google.com/p/zfspy/

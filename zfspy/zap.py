@@ -53,7 +53,8 @@ class ZAP(object):
             self._mzap(data)
         else:
             # fat zap here
-            debug('type=%x fat zap found' % self.type)
+            print 'type=%x zap found' % self.type
+            hexprint(data)
             pass
 
     def _mzap(self, data):
@@ -73,6 +74,27 @@ class ZAP(object):
         zap = ZAP(ZIO.read_blk(objset.vdev, bp))
         zap.dnode = dnode # we'd better to save the dnode we came from
         return zap
+
+    def _fatzap(self, data):
+        """
+        zap_block_type
+        zap_magic 0x2f52AB2AB
+        zap_table:
+            zt_blk
+            zt_num_blks
+            zt_shif
+
+            zt_nextblk
+            zt_copied
+
+        zap_freeblk
+        zap_num_leafs
+        zap_num_entries
+        zap_salt
+        zap_pad 8181
+        zap_leafs 8192
+        """
+        pass
 
     def __repr__(self):
         return '<ZAP %s>' % self.entries
